@@ -1,15 +1,15 @@
 
-new-docker-host-vm:
-	-multipass delete $(APP_HOST)
-	multipass purge
-	multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) $(MP_IMAGE_NAME)
-	-multipass exec $(APP_HOST) -- sudo apt-get remove docker docker-engine docker.io containerd runc
-	multipass exec $(APP_HOST) -- sudo apt-get install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
-	multipass exec $(APP_HOST) -- curl -fsSL https://download.docker.com/linux/ubuntu/gpg | multipass exec $(APP_HOST) -- sudo apt-key add -
-	multipass exec $(APP_HOST) -- sudo apt-key fingerprint 0EBFCD88
-	multipass exec $(APP_HOST) -- sudo add-apt-repository --yes 'deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable'
-	multipass exec $(APP_HOST) -- sudo apt-get update
-	multipass exec $(APP_HOST) -- sudo apt-get --yes install docker-ce docker-ce-cli containerd.io
-	multipass exec $(APP_HOST) -- sudo docker run hello-world 
-	#multipass exec $(APP_HOST) -- sudo docker pull postgres
+# this def can be overrided in any file that includes this one
+DOCKER_COMPOSE_VERSION=1.27.4
+
+# initialize
+FORCE_VM_CREATION=0
+FORCE_CONTAINER_CREATION=0
+
+CREATE_DOCKER_HOST_VM = $(shell if [ $(FORCE_VM_CREATION) -ne 0 ] || ! multipass list | grep "^$(APP_HOST) *Running " > /dev/null; then echo "new-docker-host-vm new-containers"; fi)
+
+CREATE_DOCKER_CONTAINERS = $(shell if [ -n $(CREATE_DOCKER_HOST_VM) ] || [ $(FORCE_CONTAINER_CREATION) -ne 0 ] || ! multipass exec $(APP_HOST) -- sudo docker-compose --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) ps > /dev/null; then echo "new-containers"; fi)
+
+FORWARD_PORT=$(TOP)/bin/forward_port.sh
+EXTERNAL_INTERFACE=enp0s25
 

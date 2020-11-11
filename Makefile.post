@@ -1,0 +1,39 @@
+
+new-docker-host-vm:
+	# out with the old
+	-multipass delete $(APP_HOST)
+	-multipass purge
+	
+	# and in with the new
+	#multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
+	multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) $(MP_IMAGE_NAME)
+	-multipass exec $(APP_HOST) -- sudo apt-get --yes remove docker docker-engine docker.io containerd runc
+	multipass exec $(APP_HOST) -- sudo apt-get --yes install apt-transport-https ca-certificates curl gnupg-agent software-properties-common
+	multipass exec $(APP_HOST) -- curl -fsSL https://download.docker.com/linux/ubuntu/gpg | multipass exec $(APP_HOST) -- sudo apt-key add -
+	multipass exec $(APP_HOST) -- sudo apt-key fingerprint 0EBFCD88
+	multipass exec $(APP_HOST) -- sudo add-apt-repository --yes 'deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable'
+	multipass exec $(APP_HOST) -- sudo apt-get --yes update
+	multipass exec $(APP_HOST) -- sudo apt-get --yes install docker-ce docker-ce-cli containerd.io
+	multipass exec $(APP_HOST) -- sudo docker run hello-world 
+	
+	# now, install docker compose
+	#multipass exec $(APP_HOST) -- sudo apt --yes install docker-compose
+	multipass exec $(APP_HOST) -- sudo curl -L "https://github.com/docker/compose/releases/download/$(DOCKER_COMPOSE_VERSION)/docker-compose-$$(uname -s)-$$(uname -m)" -o /usr/local/bin/docker-compose
+	multipass exec $(APP_HOST) -- sudo chmod +x /usr/local/bin/docker-compose
+	
+	# set iptables forwarding
+	$(shell $(FORWARD_PORT) $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(EXTERNAL_PORT) $(INSTANCE_PORT))
+
+	# finally, mount code repository to finish setup from the new host vm
+	multipass mount $(PWD) $(APP_HOST):$(APP_PATH)
+
+x-new-containers:
+	echo executing new-containers recipe
+
+new-containers:
+#	# first, out with the old
+#	-multipass exec $(APP_HOST) -- sudo docker-compose --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) down
+#	
+	# and now in with the new
+	multipass exec $(APP_HOST) -- sudo docker-compose --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
+
