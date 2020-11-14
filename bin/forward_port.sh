@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# handy debug rules:
+#
+# sudo iptables -I FORWARD 1 -p tcp --dport 5000 -j LOG --log-prefix "IPFORW:" --log-level debug
+# sudo iptables -t nat -I PREROUTING 1 -p tcp --dport 5000 -j LOG --log-prefix "IPNAT:" --log-level debug
+#
+
 if [ $# -ne 5 ]; then
     echo "usage $0 <multipass-instance-name> <host-interface> <proto> <host-port> <instance-port>" >&2
     exit 1

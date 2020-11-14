@@ -1,5 +1,5 @@
 
-new-docker-host-vm:
+new-docker-host-vm: gen-host-vm-configs
 	# out with the old
 	-multipass delete $(APP_HOST)
 	-multipass purge
@@ -14,14 +14,17 @@ new-docker-host-vm:
 	multipass exec $(APP_HOST) -- sudo add-apt-repository --yes 'deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable'
 	multipass exec $(APP_HOST) -- sudo apt-get --yes update
 	multipass exec $(APP_HOST) -- sudo apt-get --yes install docker-ce docker-ce-cli containerd.io
-	multipass exec $(APP_HOST) -- sudo docker run hello-world 
+	multipass exec $(APP_HOST) -- sudo docker run hello-world
 	
 	# now, install docker compose
+	# skip stock package since it's old
 	#multipass exec $(APP_HOST) -- sudo apt --yes install docker-compose
+	# get docker-compose package from github
 	multipass exec $(APP_HOST) -- sudo curl -L "https://github.com/docker/compose/releases/download/$(DOCKER_COMPOSE_VERSION)/docker-compose-$$(uname -s)-$$(uname -m)" -o /usr/local/bin/docker-compose
 	multipass exec $(APP_HOST) -- sudo chmod +x /usr/local/bin/docker-compose
 	
-	# set iptables forwarding
+	# set iptables forwarding on local host to expose the container host vm
+	# - can this not be done via the cloud-init file?
 	$(shell $(FORWARD_PORT) $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(EXTERNAL_PORT) $(INSTANCE_PORT))
 
 	# finally, mount code repository to finish setup from the new host vm
@@ -30,10 +33,29 @@ new-docker-host-vm:
 x-new-containers:
 	echo executing new-containers recipe
 
-new-containers:
+new-containers: gen-container-configs
 #	# first, out with the old
 #	-multipass exec $(APP_HOST) -- sudo docker-compose --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) down
 #	
 	# and now in with the new
 	multipass exec $(APP_HOST) -- sudo docker-compose --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
+
+gen-host-vm-configs: $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE)
+	  $(SED) -E \
+	    -e 's/___EXTERNAL_PORT___/$(EXTERNAL_PORT)/g' \
+	    -e 's/___INSTANCE_PORT___/$(INSTANCE_PORT)/g' \
+	  $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE) > $(HOST_VM_CLOUD_INIT_FILE) 
+
+
+gen-container-configs: $(DOCKER_FILE_TEMPLATE) $(DOCKER_COMPOSE_FILE_TEMPLATE)
+	$(SED) -E \
+	  -e 's/___EXTERNAL_PORT___/$(EXTERNAL_PORT)/g' \
+	  -e 's/___INSTANCE_PORT___/$(INSTANCE_PORT)/g' \
+	$(DOCKER_FILE_TEMPLATE) > $(DOCKER_FILE)
+	
+	$(SED) -E \
+	  -e 's/___EXTERNAL_PORT___/$(EXTERNAL_PORT)/g' \
+	  -e 's/___INSTANCE_PORT___/$(INSTANCE_PORT)/g' \
+	$(DOCKER_COMPOSE_FILE_TEMPLATE) > $(DOCKER_COMPOSE_FILE)
+
 

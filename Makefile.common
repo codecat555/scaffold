@@ -1,4 +1,6 @@
 
+SED=/usr/bin/sed
+
 # this def can be overrided in any file that includes this one
 DOCKER_COMPOSE_VERSION=1.27.4
 
@@ -8,8 +10,23 @@ FORCE_CONTAINER_CREATION=0
 
 CREATE_DOCKER_HOST_VM = $(shell if [ $(FORCE_VM_CREATION) -ne 0 ] || ! multipass list | grep "^$(APP_HOST) *Running " > /dev/null; then echo "new-docker-host-vm new-containers"; fi)
 
-CREATE_DOCKER_CONTAINERS = $(shell if [ -n $(CREATE_DOCKER_HOST_VM) ] || [ $(FORCE_CONTAINER_CREATION) -ne 0 ] || ! multipass exec $(APP_HOST) -- sudo docker-compose --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) ps > /dev/null; then echo "new-containers"; fi)
+SERVICE_PATTERNS=$(foreach SERVICE, $(SERVICES), -e "$(SERVICE)")
+SERVICE_COUNT=$(shell echo "$(SERVICES)" | wc -w)
+CREATE_DOCKER_CONTAINERS = $(shell if [ -n "$(CREATE_DOCKER_HOST_VM)" ] || [ $(FORCE_CONTAINER_CREATION) -ne 0 ] || [ $(SERVICE_COUNT) -ne $$(multipass exec $(APP_HOST) -- sudo docker-compose --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) ps --services | grep -c $(SERVICE_PATTERNS)) ]; then echo "new-containers"; fi)
 
 FORWARD_PORT=$(TOP)/bin/forward_port.sh
 EXTERNAL_INTERFACE=enp0s25
+
+# these values are defined here so they are globally unique and don't overlap
+DEDUPLIFIER_EXTERNAL_PORT=5000
+TEST0_EXTERNAL_PORT=5001
+
+DOCKER_FILE=Dockerfile
+DOCKER_FILE_TEMPLATE=$(DOCKER_FILE).tmpl
+
+DOCKER_COMPOSE_FILE=docker-compose.yml
+DOCKER_COMPOSE_FILE_TEMPLATE=$(DOCKER_COMPOSE_FILE).tmpl
+
+HOST_VM_CLOUD_INIT_FILE=cloud-init.yml
+HOST_VM_CLOUD_INIT_FILE_TEMPLATE=$(HOST_VM_CLOUD_INIT_FILE).tmpl
 
