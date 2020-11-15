@@ -23,10 +23,6 @@ new-docker-host-vm: gen-host-vm-configs
 	multipass exec $(APP_HOST) -- sudo curl -L "https://github.com/docker/compose/releases/download/$(DOCKER_COMPOSE_VERSION)/docker-compose-$$(uname -s)-$$(uname -m)" -o /usr/local/bin/docker-compose
 	multipass exec $(APP_HOST) -- sudo chmod +x /usr/local/bin/docker-compose
 	
-	# set iptables forwarding on local host to expose the container host vm
-	# - can this not be done via the cloud-init file?
-	$(shell $(FORWARD_PORT) $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(EXTERNAL_PORT) $(INSTANCE_PORT))
-
 	# finally, mount code repository to finish setup from the new host vm
 	multipass mount $(PWD) $(APP_HOST):$(APP_PATH)
 
@@ -39,6 +35,11 @@ new-containers: gen-container-configs
 #	
 	# and now in with the new
 	multipass exec $(APP_HOST) -- sudo docker-compose --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
+	
+	# set iptables forwarding on local host to expose the container host vm
+	# - can this not be done via the cloud-init file?
+	$(shell set -x; $(FORWARD_PORT) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(EXTERNAL_PORT) $(INSTANCE_PORT))
+	
 
 gen-host-vm-configs: $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE)
 	  $(SED) -E \

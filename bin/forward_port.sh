@@ -2,13 +2,19 @@
 
 # handy debug rules:
 #
-# sudo iptables -I FORWARD 1 -p tcp --dport 5000 -j LOG --log-prefix "IPFORW:" --log-level debug
+# sudo iptables -t filter -I FORWARD 1 -p tcp --dport 5000 -j LOG --log-prefix "IPFORW:" --log-level debug
 # sudo iptables -t nat -I PREROUTING 1 -p tcp --dport 5000 -j LOG --log-prefix "IPNAT:" --log-level debug
 #
 
-if [ $# -ne 5 ]; then
-    echo "usage $0 <multipass-instance-name> <host-interface> <proto> <host-port> <instance-port>" >&2
+FORCE=0
+
+if [[ $# -ne 5 && $# -ne 6 ]]; then
+    echo "usage $0 [-f] <multipass-instance-name> <host-interface> <proto> <host-port> <instance-port>" >&2
     exit 1
+fi
+if [ $1 == "-f" ]; then
+    shift
+    FORCE=1
 fi
 app_host=$1
 host_ifc=$2
@@ -23,18 +29,87 @@ instance_ip=$(multipass info $app_host | grep '^IPv4:' | sed -E 's/^.* ([0-9]+\.
 # see example at https://discourse.ubuntu.com/t/multipass-port-forwarding-with-iptables/18741
 # also see http://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-6.html#ss6.2
 
-# check if rule already exists for some host interface, to avoid conflicts
-matched_rule=$(sudo iptables -t nat -L PREROUTING -v | grep "DNAT .* $host_ifc .* $proto dpt:$host_port ")
-if [ -z "$matched_rule" ]; then
-    # insert the pre-routing rule
-    sudo iptables -t nat -I PREROUTING 1 -i $host_ifc -p $proto --dport $host_port -j DNAT --to-destination $instance_ip:$instance_port
-elif ! echo "$matched_rule" | grep " to:$instance_ip:$instance_port" > /dev/null; then
-    echo "PREROUTING rule already exists mapping the same host interface and port to a different destination, delete that rule first or choose a different host port"
-    exit 2
-fi
+doit() {
+    table=$1
+    chain=$2
+    action=$3
+    purpose=$4
 
-matched_rule=$(sudo iptables -L FORWARD -v | grep ".* $host_ifc .* $instance_ip .* $proto dpt:$instance_port")
-if [ -z "$matched_rule" ]; then
-    sudo iptables -I FORWARD 1 -i $host_ifc -p $proto -d $instance_ip --dport $host_port -j ACCEPT
-fi
+    # check if rule already exists for some host interface, to avoid conflicts
+    matched_rule=$(sudo iptables -t $table -L $chain -v --line-numbers | grep ".* $host_ifc .* $proto dpt:$host_port ")
+
+    echo "$matched_rule" | grep " to:$instance_ip:$instance_port" > /dev/null
+    matched_same_dest=$?
+    if [ -n "$matched_rule" ] && [ $matched_same_dest -ne 0 ]; then
+        if [ $FORCE -eq 1 ]; then
+            line_num=$(echo $matched_rule | cut -d' ' -f1)
+            sudo iptables -t $table -D $chain $line_num
+            if [ $? -ne 0 ]; then
+                echo "failed to delete partially-matched $chain rule" >&2
+                exit 3
+            fi
+            matched_rule=""
+        else
+            echo "$chain rule already exists mapping the same host interface and port to a different destination, delete that rule first or choose a different host port" >&2
+            exit 2
+        fi
+    fi
+
+    if [ -z "$matched_rule" ]; then
+        # insert the pre-routing rule
+        sudo iptables -t $table -I $chain 1 -i $host_ifc -p $proto --dport $host_port -j $action --to-destination $instance_ip:$instance_port -m comment --comment "generated for $purpose"
+    fi
+}
+
+## check if rule already exists for some host interface, to avoid conflicts
+#matched_rule=$(sudo iptables -t nat -L PREROUTING -v --line-numbers | grep ".* $host_ifc .* $proto dpt:$host_port ")
+#
+#echo "$matched_rule" | grep " to:$instance_ip:$instance_port" > /dev/null
+#matched_same_dest=$?
+#if [ -n "$matched_rule" ] && [ $matched_same_dest -ne 0 ]; then
+#    if [ $FORCE -eq 1 ]; then
+#        line_num=$(echo $matched_rule | cut -d' ' -f1)
+#        sudo iptables -t nat -D PREROUTING $line_num
+#        if [ $? -ne 0 ]; then
+#            echo "failed to delete partially-matched PREROUTING rule" >&2
+#            exit 3
+#        fi
+#        matched_rule=""
+#    else
+#        echo "PREROUTING rule already exists mapping the same host interface and port to a different destination, delete that rule first or choose a different host port" >&2
+#        exit 2
+#    fi
+#fi
+#
+#if [ -z "$matched_rule" ]; then
+#    # insert the pre-routing rule
+#    sudo iptables -t nat -I PREROUTING 1 -i $host_ifc -p $proto --dport $host_port -j DNAT --to-destination $instance_ip:$instance_port -m comment --comment "generated for $app_host"
+#fi
+#
+#matched_rule=$(sudo iptables -t filter -L FORWARD -v | grep ".* $host_ifc .* $instance_ip .* $proto dpt:$instance_port")
+#matched_same_dest=$?
+#if [ -n "$matched_rule" ] && [ $matched_same_dest -ne 0 ]; then
+#    if [ $FORCE -eq 1 ]; then
+#        line_num=$(echo $matched_rule | cut -d' ' -f1)
+#        sudo iptables -t filter -D FORWARD $line_num
+#        if [ $? -ne 0 ]; then
+#            echo "failed to delete partially-matched PREROUTING rule" >&2
+#            exit 3
+#        fi
+#        matched_rule=""
+#    else
+#        echo "PREROUTING rule already exists mapping the same host interface and port to a different destination, delete that rule first or choose a different host port" >&2
+#        exit 2
+#    fi
+#fi
+#
+#if [ -z "$matched_rule" ]; then
+#    sudo iptables -t filter -I FORWARD 1 -i $host_ifc -p $proto -d $instance_ip --dport $host_port -j ACCEPT -m comment --comment "generated for $app_host"
+#fi
+
+doit 'nat' 'PREROUTING' 'DNAT' $app_host
+doit 'filter' 'FORWARD' 'ACCEPT' $app_host
+
+# persist the change
+#sudo iptables-save > /etc/iptables/rules.v4
 
