@@ -5,6 +5,17 @@ new-docker-host-vm: gen-host-vm-configs
 	-multipass purge
 	
 	# and in with the new
+	multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
+	
+	# finally, mount code repository to finish setup from the new host vm
+	multipass mount $(PWD) $(APP_HOST):$(APP_PATH)
+
+x-new-docker-host-vm: gen-host-vm-configs
+	# out with the old
+	-multipass delete $(APP_HOST)
+	-multipass purge
+	
+	# and in with the new
 	#multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
 	multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) $(MP_IMAGE_NAME)
 	-multipass exec $(APP_HOST) -- sudo apt-get --yes remove docker docker-engine docker.io containerd runc
@@ -38,7 +49,7 @@ new-containers: gen-container-configs
 	
 	# set iptables forwarding on local host to expose the container host vm
 	# - can this not be done via the cloud-init file?
-	$(shell set -x; $(FORWARD_PORT) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(EXTERNAL_PORT) $(INSTANCE_PORT))
+	$(shell set -x; sudo $(FORWARD_PORT) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(EXTERNAL_PORT) $(INSTANCE_PORT))
 	
 
 gen-host-vm-configs: $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE)

@@ -2,8 +2,8 @@
 
 # handy debug rules:
 #
-# sudo iptables -t filter -I FORWARD 1 -p tcp --dport 5000 -j LOG --log-prefix "IPFORW:" --log-level debug
-# sudo iptables -t nat -I PREROUTING 1 -p tcp --dport 5000 -j LOG --log-prefix "IPNAT:" --log-level debug
+# iptables -t filter -I FORWARD 1 -p tcp --dport 5000 -j LOG --log-prefix "IPFORW:" --log-level debug
+# iptables -t nat -I PREROUTING 1 -p tcp --dport 5000 -j LOG --log-prefix "IPNAT:" --log-level debug
 #
 
 FORCE=0
@@ -36,14 +36,14 @@ doit() {
     purpose=$4
 
     # check if rule already exists for some host interface, to avoid conflicts
-    matched_rule=$(sudo iptables -t $table -L $chain -v --line-numbers | grep ".* $host_ifc .* $proto dpt:$host_port ")
+    matched_rule=$(iptables -t $table -L $chain -v --line-numbers | grep ".* $host_ifc .* $proto dpt:$host_port ")
 
     echo "$matched_rule" | grep " to:$instance_ip:$instance_port" > /dev/null
     matched_same_dest=$?
     if [ -n "$matched_rule" ] && [ $matched_same_dest -ne 0 ]; then
         if [ $FORCE -eq 1 ]; then
             line_num=$(echo $matched_rule | cut -d' ' -f1)
-            sudo iptables -t $table -D $chain $line_num
+            iptables -t $table -D $chain $line_num
             if [ $? -ne 0 ]; then
                 echo "failed to delete partially-matched $chain rule" >&2
                 exit 3
@@ -57,7 +57,7 @@ doit() {
 
     if [ -z "$matched_rule" ]; then
         # insert the pre-routing rule
-        sudo iptables -t $table -I $chain 1 -i $host_ifc -p $proto --dport $host_port -j $action --to-destination $instance_ip:$instance_port -m comment --comment "generated for $purpose"
+        iptables -t $table -I $chain 1 -i $host_ifc -p $proto --dport $host_port -j $action --to-destination $instance_ip:$instance_port -m comment --comment "generated for $purpose"
     fi
 }
 
@@ -65,5 +65,5 @@ doit 'nat' 'PREROUTING' 'DNAT' $app_host
 doit 'filter' 'FORWARD' 'ACCEPT' $app_host
 
 # persist the change
-sudo iptables-save > /etc/iptables/rules.v4
+iptables-save > /etc/iptables/rules.v4
 
