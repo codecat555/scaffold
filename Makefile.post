@@ -28,6 +28,7 @@ new-containers: gen-container-configs
 	# set iptables forwarding on local host to expose the container host vm
 	# - can this not be done via the cloud-init file?
 	$(shell set -x; sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(WEB_EXTERNAL_PORT) $(WEB_INSTANCE_PORT))
+	$(shell set -x; sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(DB_EXTERNAL_PORT) $(DB_INSTANCE_PORT))
 	
 	@echo "*** New containers complete..."
 
