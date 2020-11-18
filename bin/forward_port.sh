@@ -40,37 +40,34 @@ fi
 doit() {
     table=$1
     chain=$2
-    action=$3
+    target=$3
     purpose=$4
 
     # check if rule already exists for some host interface, to avoid conflicts
-    matched_rule=$(iptables -t $table -L $chain -v --line-numbers | grep ".* $host_ifc .* $proto dpt:$host_port ")
-
-    echo "$matched_rule" | grep " to:$instance_ip:$instance_port" > /dev/null
-    matched_same_dest=$?
-    if [ -n "$matched_rule" ] && [ $matched_same_dest -ne 0 ]; then
+    # note: tac is used to capture rules in reverse order, for last-first deletion
+    matching_rules=$(iptables -t $table -L $chain -v --line-numbers | grep ".* $host_ifc .* $proto dpt:$host_port" | tac)
+    if [ -n "$matching_rules" ]; then
         if [ $FORCE -eq 1 ]; then
-            line_num=$(echo $matched_rule | cut -d' ' -f1)
-            iptables -t $table -D $chain $line_num
-            if [ $? -ne 0 ]; then
-                echo "failed to delete partially-matched $chain rule" >&2
-                exit 3
-            fi
-            matched_rule=""
+            echo "$matching_rules" | while read matched_rule; do
+                line_num=$(echo "$matched_rule" | cut -d' ' -f1)
+                iptables -t $table -D $chain $line_num
+                if [ $? -ne 0 ]; then
+                    echo "failed to delete matching rule in chain $chain" >&2
+                    exit 3
+                fi
+            done
         else
-            echo "$chain rule already exists mapping the same host interface and port to a different destination, delete that rule first or choose a different host port" >&2
+            echo "one or more rules already exist mapping the same host interface and port, use force option or choose different parameters" >&2
             exit 2
         fi
     fi
 
-    if [ -z "$matched_rule" ]; then
-        # insert the pre-routing rule
-        extra_args=
-        if [ $table == 'nat' ]; then
-            extra_args="--to-destination $instance_ip:$instance_port"
-        fi
-        iptables -t $table -I $chain 1 -i $host_ifc -p $proto --dport $host_port -j $action $extra_args -m comment --comment "generated for $purpose"
+    # insert the pre-routing rule
+    extra_args=
+    if [ $table == 'nat' ]; then
+        extra_args="--to-destination $instance_ip:$instance_port"
     fi
+    iptables -t $table -I $chain 1 -i $host_ifc -p $proto --dport $host_port -j $target $extra_args -m comment --comment "generated for $purpose"
 }
 
 doit 'nat' 'PREROUTING' 'DNAT' $app_host
