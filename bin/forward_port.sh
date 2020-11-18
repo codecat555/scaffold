@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 # handy debug rules:
 #
@@ -23,7 +23,15 @@ host_port=$4
 instance_port=$5
 
 # get the instance ip addr
-instance_ip=$(multipass info $app_host | grep '^IPv4:' | sed -E 's/^.* ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) *$/\1/')
+#instance_ip=$(multipass info $app_host | grep '^IPv4:' | sed -E 's/^.* ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) *$/\1/')
+# regex pulled from https://stackoverflow.com/questions/11482951/extracting-ip-address-from-a-line-from-ifconfig-output-with-grep/11483005#11483005
+instance_ip=$(multipass list | grep $app_host | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b')
+if [ $? -ne 0 ]; then
+    echo "Error: failed to retrieve instance ip address - is host up?" >&2
+    multipass list
+    exit 4
+fi
+
 #echo $instance_ip
 
 # see example at https://discourse.ubuntu.com/t/multipass-port-forwarding-with-iptables/18741
@@ -57,7 +65,11 @@ doit() {
 
     if [ -z "$matched_rule" ]; then
         # insert the pre-routing rule
-        iptables -t $table -I $chain 1 -i $host_ifc -p $proto --dport $host_port -j $action --to-destination $instance_ip:$instance_port -m comment --comment "generated for $purpose"
+        extra_args=
+        if [ $table == 'nat' ]; then
+            extra_args="--to-destination $instance_ip:$instance_port"
+        fi
+        iptables -t $table -I $chain 1 -i $host_ifc -p $proto --dport $host_port -j $action $extra_args -m comment --comment "generated for $purpose"
     fi
 }
 

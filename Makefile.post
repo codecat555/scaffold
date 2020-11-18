@@ -1,42 +1,55 @@
 
 new-docker-host-vm: gen-host-vm-configs
+	@echo "*** Generating new host vm..."
 	# out with the old
 	-multipass delete $(APP_HOST)
 	-multipass purge
 	
 	# and in with the new
 	multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
+	#multipass launch -vvv --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
+	
+	multipass list --verbose
+	multipass start
 	
 	# finally, mount code repository to finish setup from the new host vm
-	multipass mount $(PWD) $(APP_HOST):$(APP_PATH)
+	multipass mount $(APP_HOME) $(APP_HOST):$(APP_PATH)
+	
+	@echo "*** New host vm complete..."
 
+# dummy target used for testing
 x-new-containers:
 	echo executing new-containers recipe
 
 new-containers: gen-container-configs
-	multipass exec $(APP_HOST) -- sudo docker-compose --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
+	@echo "*** Generating new containers..."
+	multipass exec $(APP_HOST) -- sudo docker-compose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
 	
 	# set iptables forwarding on local host to expose the container host vm
 	# - can this not be done via the cloud-init file?
-	$(shell set -x; sudo $(FORWARD_PORT) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(EXTERNAL_PORT) $(INSTANCE_PORT))
+	$(shell set -x; sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(WEB_EXTERNAL_PORT) $(WEB_INSTANCE_PORT))
 	
+	@echo "*** New containers complete..."
 
 gen-host-vm-configs: $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE)
-	  $(SED) -E \
-	    -e 's/___EXTERNAL_PORT___/$(EXTERNAL_PORT)/g' \
-	    -e 's/___INSTANCE_PORT___/$(INSTANCE_PORT)/g' \
-	  $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE) > $(HOST_VM_CLOUD_INIT_FILE) 
-
-
-gen-container-configs: $(DOCKER_FILE_TEMPLATE) $(DOCKER_COMPOSE_FILE_TEMPLATE)
+	@echo "*** Generating host vm config from templates..."
 	$(SED) -E \
-	  -e 's/___EXTERNAL_PORT___/$(EXTERNAL_PORT)/g' \
-	  -e 's/___INSTANCE_PORT___/$(INSTANCE_PORT)/g' \
-	$(DOCKER_FILE_TEMPLATE) > $(DOCKER_FILE)
-	
-	$(SED) -E \
-	  -e 's/___EXTERNAL_PORT___/$(EXTERNAL_PORT)/g' \
-	  -e 's/___INSTANCE_PORT___/$(INSTANCE_PORT)/g' \
-	$(DOCKER_COMPOSE_FILE_TEMPLATE) > $(DOCKER_COMPOSE_FILE)
+	  -e 's/___WEB_EXTERNAL_PORT___/$(WEB_EXTERNAL_PORT)/g' \
+	  -e 's/___WEB_INSTANCE_PORT___/$(WEB_INSTANCE_PORT)/g' \
+	$(HOST_VM_CLOUD_INIT_FILE_TEMPLATE) > $(HOST_VM_CLOUD_INIT_FILE) 
 
+gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildcard *.tmpl))
+	@echo "*** Generating container configs from templates..."
+	# if these substitutions get any more complex, use m4 instead.
+	for infile in $^; do                                        \
+	    outfile=$$(basename --suffix .tmpl $$infile);           \
+	    $(SED) -E                                               \
+	      -e 's@___WEB_EXTERNAL_PORT___@$(WEB_EXTERNAL_PORT)@g' \
+	      -e 's@___WEB_INSTANCE_PORT___@$(WEB_INSTANCE_PORT)@g' \
+	      -e 's@___APP_NAME___@$(APP_NAME)@g'                   \
+	      -e 's@___CODE_PATH___@$(CODE_PATH)@g'                 \
+	      -e 's@___DB_EXTERNAL_PORT___@$(DB_EXTERNAL_PORT)@g'   \
+	      -e 's@___DB_INSTANCE_PORT___@$(DB_INSTANCE_PORT)@g'   \
+	   $$infile > $$outfile;                                    \
+	done
 
