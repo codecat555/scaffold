@@ -17,6 +17,7 @@ DOCKER_COMPOSE_VERSION=1.27.4
 # initialize
 FORCE_VM_CREATION=0
 FORCE_CONTAINER_CREATION=0
+FORCE_DB_CREATION=0
 
 CREATE_DOCKER_HOST_VM = $(shell if [ $(FORCE_VM_CREATION) -ne 0 ] || ! multipass list | grep "^$(APP_HOST) *Running " > /dev/null; then echo "new-docker-host-vm new-containers"; fi)
 

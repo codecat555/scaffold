@@ -23,7 +23,9 @@ x-new-containers:
 
 new-containers: gen-container-configs
 	@echo "*** Generating new containers..."
-	multipass exec $(APP_HOST) -- sudo docker-compose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
+	multipass exec $(APP_HOST) -- sudo docker-compose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) down 
+	if [ $(FORCE_DB_CREATION) -eq 1 ]; then (cd $(TOP)/$(APP_NAME) && sudo rm -rf db); fi
+	multipass exec $(APP_HOST) -- sudo COMPOSE_PROJECT_NAME=$(APP_NAME) docker-compose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
 	
 	# set iptables forwarding on local host to expose the container host vm
 	# - can this not be done via the cloud-init file?
@@ -48,7 +50,9 @@ gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildc
 	      -e 's@___WEB_EXTERNAL_PORT___@$(WEB_EXTERNAL_PORT)@g' \
 	      -e 's@___WEB_INSTANCE_PORT___@$(WEB_INSTANCE_PORT)@g' \
 	      -e 's@___APP_NAME___@$(APP_NAME)@g'                   \
+	      -e 's@___APP_PATH___@$(APP_PATH)@g'                   \
 	      -e 's@___CODE_PATH___@$(CODE_PATH)@g'                 \
+	      -e 's@___DB_PATH___@$(DB_PATH)@g'                     \
 	      -e 's@___DB_EXTERNAL_PORT___@$(DB_EXTERNAL_PORT)@g'   \
 	      -e 's@___DB_INSTANCE_PORT___@$(DB_INSTANCE_PORT)@g'   \
 	   $$infile > $$outfile;                                    \
