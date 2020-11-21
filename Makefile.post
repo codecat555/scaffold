@@ -31,8 +31,8 @@ new-containers: gen-container-configs
 	@# - can this not be done via the cloud-init file?
 	$(eval HOST_VM_IP=$(shell multipass list | grep $(APP_HOST) | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b'))
 	@echo "HOST_VM_IP is $(HOST_VM_IP)"
-	sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(WEB_EXTERNAL_PORT) $(HOST_VM_IP) $(WEB_INSTANCE_PORT)
-	sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(DB_EXTERNAL_PORT) $(HOST_VM_IP) $(DB_INSTANCE_PORT)
+	sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(WEB_EXTERNAL_PORT) $(HOST_VM_IP) $(WEB_EXTERNAL_PORT)
+	sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(DB_EXTERNAL_PORT) $(HOST_VM_IP) $(DB_EXTERNAL_PORT)
 	
 	@echo "### New containers complete..."
 
