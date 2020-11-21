@@ -23,9 +23,9 @@ x-new-containers:
 
 new-containers: gen-container-configs
 	@echo "### Generating new containers..."
-	multipass exec $(APP_HOST) -- sudo docker-compose --log-level warning --verbose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) down
+	multipass exec $(APP_HOST) -- sudo docker-compose --project-name $(APP_NAME) --log-level warning --verbose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) down
 	if [ $(FORCE_DB_CREATION) -eq 1 ]; then (cd $(TOP)/$(APP_NAME) && sudo rm -rf db); fi
-	multipass exec $(APP_HOST) -- sudo COMPOSE_PROJECT_NAME=$(APP_NAME) docker-compose --log-level warning --verbose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
+	multipass exec $(APP_HOST) -- sudo COMPOSE_PROJECT_NAME=$(APP_NAME) docker-compose --project-name $(APP_NAME) --log-level warning --verbose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
 	
 	@# set iptables forwarding on local host to expose the container host vm
 	@# - can this not be done via the cloud-init file?

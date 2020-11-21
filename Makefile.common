@@ -23,7 +23,7 @@ CREATE_DOCKER_HOST_VM = $(shell if [ $(FORCE_VM_CREATION) -ne 0 ] || ! multipass
 
 SERVICE_PATTERNS=$(foreach SERVICE, $(SERVICES), -e "$(SERVICE)")
 SERVICE_COUNT=$(shell echo "$(SERVICES)" | wc -w)
-CREATE_DOCKER_CONTAINERS = $(shell if [ -n "$(CREATE_DOCKER_HOST_VM)" ] || [ $(FORCE_CONTAINER_CREATION) -ne 0 ] || [ $(SERVICE_COUNT) -ne $$(multipass exec $(APP_HOST) -- sudo docker-compose --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) ps --services | grep -c $(SERVICE_PATTERNS)) ]; then echo "new-containers"; fi)
+CREATE_DOCKER_CONTAINERS = $(shell if [ -n "$(CREATE_DOCKER_HOST_VM)" ] || [ $(FORCE_CONTAINER_CREATION) -ne 0 ] || [ $(SERVICE_COUNT) -ne $$(multipass exec $(APP_HOST) -- sudo docker-compose --project-name $(APP_NAME) --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) ps --services | grep -c $(SERVICE_PATTERNS)) ]; then echo "new-containers"; fi)
 
 FORWARD_PORT_CMD=$(TOP)/bin/forward_port.sh
 EXTERNAL_INTERFACE=enp0s25
