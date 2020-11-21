@@ -26,18 +26,6 @@ host_port=$4
 instance_ip=$5
 instance_port=$6
 
-# get the instance ip addr
-#instance_ip=$(multipass info $app_host | grep '^IPv4:' | sed -E 's/^.* ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) *$/\1/')
-# regex pulled from https://stackoverflow.com/questions/11482951/extracting-ip-address-from-a-line-from-ifconfig-output-with-grep/11483005#11483005
-#instance_ip=$(multipass list | grep $app_host | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b')
-#if [ $? -ne 0 ]; then
-#    echo "Error: failed to retrieve instance ip address - is host up?" >&2
-#    multipass list
-#    exit 4
-#fi
-
-#echo $instance_ip
-
 # see example at https://discourse.ubuntu.com/t/multipass-port-forwarding-with-iptables/18741
 # also see http://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-6.html#ss6.2
 
@@ -65,51 +53,21 @@ for table in filter nat; do
     done
 done
 
-#
-# rules for localhost, from https://serverfault.com/questions/551487/dnat-from-localhost-127-0-0-1
-#
-#iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 4242 -j DNAT --to 11.22.33.44:5353
-#sysctl -w net.ipv4.conf.eth0.route_localnet=1
-#iptables -t nat -A POSTROUTING -p tcp -s 127.0.0.1 -d 11.22.33.44 --dport 5353 -j SNAT --to $your-eth0-ip
-#
-###    # insert the pre-routing rule
-###    extra_args=
-###    if [ $table == 'nat' ]; then
-###        if [ $target == 'DNAT' ]; then
-###            # -A OUTPUT -d 127.0.0.1/32 -p tcp -m tcp --dport 5000 -j DNAT --to 10.127.208.19:5000
-###            #iptables -t $table -I $chain -d 127.0.0.1/32 -p $proto -m tcp --dport $host_port -j $target --to $instance_ip:$instance_port
-###            iptables -t $table -I $chain 1 -o lo  -p $proto -m tcp --dport $host_port -j $target --to $instance_ip:$instance_port
-###        elif [ $target == 'SNAT' ]; then
-###            #-A POSTROUTING -s 127.0.0.1/32 -d 10.127.208.19/32 -p tcp -m tcp --dport 5000 -j SNAT --to 10.0.0.21
-###            #iptables -t $table -I $chain -s 127.0.0.1/32 -d $instance_ip/32 -p $proto -m tcp --dport $host_port -j $target --to $LOCAL_IP
-###            iptables -t $table -I $chain -i lo -d $instance_ip/32 -p $proto -m tcp --dport $host_port -j $target --to $LOCAL_IP
-###        fi
-###    else
-###        iptables -t $table -I $chain 1 -i $host_ifc -p $proto --dport $host_port -j $target
-###    fi
-###}
-
 # rules for accepting external connections
-#doit 'nat' 'PREROUTING' 'DNAT' $app_host
 iptables -t nat -I PREROUTING 1 -i $host_ifc -p $proto --dport $host_port -j DNAT --to-destination $instance_ip:$instance_port
 
-#doit 'filter' 'FORWARD' 'ACCEPT' $app_host
 iptables -t filter -I FORWARD 1 -i $host_ifc -p $proto --dport $host_port -j ACCEPT
 
 # rules for accepting localhost connections
+# - see https://serverfault.com/questions/551487/dnat-from-localhost-127-0-0-1
 sysctl -w net.ipv4.conf.all.route_localnet=1
+iptables -t nat -A OUTPUT -p $proto -d 127.0.0.1 --dport $host_port -j DNAT --to $instance_ip:$instance_port
+iptables -t nat -A POSTROUTING -p $proto -s 127.0.0.1 -d $instance_ip --dport $host_port -j SNAT --to $LOCAL_IP
+
+# persist the changes
 if [ ! -f $SYSCTL_FILE ]; then
     # make it persistent
     echo "net.ipv4.conf.all.route_localnet=1" > $SYSCTL_FILE
 fi
-#doit 'nat' 'OUTPUT' 'DNAT' $app_host
-#iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 4242 -j DNAT --to 11.22.33.44:5353
-iptables -t nat -A OUTPUT -p $proto -d 127.0.0.1 --dport $host_port -j DNAT --to $instance_ip:$instance_port
-
-#doit 'nat' 'POSTROUTING' 'SNAT' $app_host
-#iptables -t nat -A POSTROUTING -p tcp -s 127.0.0.1 -d 11.22.33.44 --dport 5353 -j SNAT --to $your-eth0-ip
-iptables -t nat -A POSTROUTING -p $proto -s 127.0.0.1 -d $instance_ip --dport $host_port -j SNAT --to $LOCAL_IP
-
-# persist the change
 iptables-save > /etc/iptables/rules.v4
 

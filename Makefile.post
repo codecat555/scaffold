@@ -1,6 +1,6 @@
 
 new-docker-host-vm: gen-host-vm-configs
-	@echo "*** Generating new host vm..."
+	@echo "### Generating new host vm..."
 	@# out with the old
 	-multipass delete $(APP_HOST)
 	-multipass purge
@@ -15,36 +15,36 @@ new-docker-host-vm: gen-host-vm-configs
 	@# finally, mount code repository to finish setup from the new host vm
 	multipass mount $(APP_HOME) $(APP_HOST):$(APP_PATH)
 	
-	@echo "*** New host vm complete..."
+	@echo "### New host vm complete..."
 
 # dummy target used for testing
 x-new-containers:
 	echo executing new-containers recipe
 
 new-containers: gen-container-configs
-	@echo "*** Generating new containers..."
-	multipass exec $(APP_HOST) -- sudo docker-compose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) down 
+	@echo "### Generating new containers..."
+	multipass exec $(APP_HOST) -- sudo docker-compose --log-level warning --verbose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) down
 	if [ $(FORCE_DB_CREATION) -eq 1 ]; then (cd $(TOP)/$(APP_NAME) && sudo rm -rf db); fi
-	multipass exec $(APP_HOST) -- sudo COMPOSE_PROJECT_NAME=$(APP_NAME) docker-compose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
+	multipass exec $(APP_HOST) -- sudo COMPOSE_PROJECT_NAME=$(APP_NAME) docker-compose --log-level warning --verbose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
 	
 	@# set iptables forwarding on local host to expose the container host vm
 	@# - can this not be done via the cloud-init file?
 	$(eval HOST_VM_IP=$(shell multipass list | grep $(APP_HOST) | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b'))
 	@echo "HOST_VM_IP is $(HOST_VM_IP)"
-	$(shell set -x; sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(WEB_EXTERNAL_PORT) $(HOST_VM_IP) $(WEB_INSTANCE_PORT))
-	$(shell set -x; sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(DB_EXTERNAL_PORT) $(HOST_VM_IP) $(DB_INSTANCE_PORT))
+	sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(WEB_EXTERNAL_PORT) $(HOST_VM_IP) $(WEB_INSTANCE_PORT)
+	sudo $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(DB_EXTERNAL_PORT) $(HOST_VM_IP) $(DB_INSTANCE_PORT)
 	
-	@echo "*** New containers complete..."
+	@echo "### New containers complete..."
 
 gen-host-vm-configs: $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE)
-	@echo "*** Generating host vm config from templates..."
+	@echo "### Generating host vm config from templates..."
 	$(SED) -E \
 	  -e 's/___WEB_EXTERNAL_PORT___/$(WEB_EXTERNAL_PORT)/g' \
 	  -e 's/___WEB_INSTANCE_PORT___/$(WEB_INSTANCE_PORT)/g' \
 	$(HOST_VM_CLOUD_INIT_FILE_TEMPLATE) > $(HOST_VM_CLOUD_INIT_FILE) 
 
 gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildcard *.tmpl))
-	@echo "*** Generating container configs from templates..."
+	@echo "### Generating container configs from templates..."
 	@# if these substitutions get any more complex, use m4 instead.
 	for infile in $^; do                                        \
 	    outfile=$$(basename --suffix .tmpl $$infile);           \
