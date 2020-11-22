@@ -7,13 +7,15 @@ new-docker-host-vm: gen-host-vm-configs
 	
 	@# and in with the new
 	multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
-	@#multipass launch -vvv --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
 	
 	multipass list --verbose
 	multipass start
 	
 	@# finally, mount code repository to finish setup from the new host vm
 	multipass mount $(APP_HOME) $(APP_HOST):$(APP_PATH)
+	
+	@# launch will overwrite the iptables-legacy rules, so re-establish our exception now
+	sudo $(UPDATE_LEGACY_IPTABLES)
 	
 	@echo "### New host vm complete..."
 
@@ -63,7 +65,7 @@ gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildc
 	done
 
 new-db:
-	@#multipass exec $(APP_HOST) -- psql localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --password $(DB_PASSWORD)
-	$(eval HOST_VM_IP:=$(if $(HOST_VM_IP),$(HOST_VM_IP),$(shell multipass list | grep $(APP_HOST) | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b')))
-	psql --host $(HOST_VM_IP) --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --password $(DB_PASSWORD)
+	@#$(eval HOST_VM_IP:=$(if $(HOST_VM_IP),$(HOST_VM_IP),$(shell multipass list | grep $(APP_HOST) | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b')))
+	@#psql --host $(HOST_VM_IP) --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --password $(DB_PASSWORD)
+	psql --host localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --file $(CODE_PATH)/sql/init.sql
 
