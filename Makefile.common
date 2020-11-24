@@ -3,6 +3,8 @@
 export TOP:=/home/me/Documents/dev
 
 SED=/usr/bin/sed
+SUDO=/usr/bin/sudo
+INSTALL=/usr/bin/install
 
 build: TARGET=build
 clean: TARGET=clean
@@ -40,4 +42,11 @@ DOCKER_COMPOSE_FILE=docker-compose.yml
 
 HOST_VM_CLOUD_INIT_FILE=cloud-init.yml
 HOST_VM_CLOUD_INIT_FILE_TEMPLATE=$(HOST_VM_CLOUD_INIT_FILE).tmpl
+
+HOST_VM_NET_SVC_DEF=host_vm_network_config.service
+HOST_VM_NET_SVC_EXEC=host_vm_network_config.sh
+
+HOST_VM_NET_SVC_SRC_DIR=$(TOP)/host_vm_network_service
+SYSTEMD_SVC_DIR=/usr/lib/systemd/system
+LOCAL_BIN=/usr/local/bin
 
