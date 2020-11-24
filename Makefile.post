@@ -45,6 +45,7 @@ host-vm-network-config-service: $(HOST_VM_NET_SVC_SRC_DIR)/$(HOST_VM_NET_SVC_DEF
 	@# install service to expose host vm services through legacy iptables rules
 	@$(SUDO) $(INSTALL) --mode 0644 $(HOST_VM_NET_SVC_SRC_DIR)/$(HOST_VM_NET_SVC_DEF) $(SYSTEMD_SVC_DIR)
 	@$(SUDO) $(INSTALL) --mode 0755 $(HOST_VM_NET_SVC_SRC_DIR)/$(HOST_VM_NET_SVC_EXEC) $(LOCAL_BIN)
+	@$(SUDO) systemctl daemon-reload
 	@$(SUDO) systemctl enable $(HOST_VM_NET_SVC_DEF)
 	@$(SUDO) systemctl start $(HOST_VM_NET_SVC_DEF)
 

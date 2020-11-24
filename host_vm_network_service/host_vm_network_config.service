@@ -1,12 +1,14 @@
 [Unit]
 Description=Development Host VM Network Config Service
 After=snap.multipass.multipassd.service
+Requires=snap.multipass.multipassd.service
+PartOf=snap.multipass.multipassd.service
 
 [Install]
 WantedBy=multi-user.target
 
 [Service]
-Type=simple
-
+Type=oneshot
+RemainAfterExit=yes
 ExecStart=/usr/local/bin/host_vm_network_config.sh
 
