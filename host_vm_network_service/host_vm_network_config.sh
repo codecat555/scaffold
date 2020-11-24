@@ -11,7 +11,7 @@ while true; do
         # found a matching rule
         break
     fi
-    
+
     cur_time=$(/usr/bin/date +'%s')
     ((elapsed=$end_time - $cur_time))
     if [ $elapsed -gt $TIMEOUT ]; then
