@@ -9,7 +9,8 @@
 FORCE=0
 SYSCTL_FILE="/etc/sysctl.d/23-custom.conf"
 
-LOCAL_IP=$(hostname -I | cut -d' ' -f1)
+# get local ip address on multipass bridge network
+LOCAL_IP=$(/usr/sbin/ip -family inet -br address show dev mpqemubr0 | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b')
 
 if [[ $# -ne 6 && $# -ne 7 ]]; then
     echo "usage $0 [-f] <multipass-instance-name> <host-interface> <proto> <host-port> <instance-ip> <instance-port>" >&2
