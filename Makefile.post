@@ -1,4 +1,9 @@
 
+# for later (add testbed docker instance(s))
+# python3 -m pip install
+# sudo apt update && sudo apt install python3-pip
+# sudo pip install psycopg2-binary
+
 new-docker-host-vm: gen-host-vm-configs
 	@echo "### Generating new host vm..."
 	@# out with the old
@@ -27,7 +32,7 @@ new-containers: gen-container-configs
 	@echo "HOST_VM_IP is $(HOST_VM_IP)"
 	
 	if [ $(FORCE_DB_CREATION) -eq 1 ]; then (cd $(TOP)/$(APP_NAME) && $(SUDO) rm -rf db); fi
-	multipass exec $(APP_HOST) -- $(SUDO) COMPOSE_PROJECT_NAME=$(APP_NAME) docker-compose --project-name $(APP_NAME) --log-level warning --verbose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
+	multipass exec $(APP_HOST) -- $(SUDO) docker-compose --project-name $(APP_NAME) --log-level warning --verbose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
 	@# allow db connections from host w/o password
 	@#if [ $(FORCE_DB_CREATION) -eq 1 ]; then ($(SUDO) $(SED) -e 's/^host all all all md5/host all all all reject/ $(TOP)/$(APP_NAME)/db/pg_hba.conf); fi
 	
@@ -53,10 +58,11 @@ host-vm-network-config-service: $(HOST_VM_NET_SVC_SRC_DIR)/$(HOST_VM_NET_SVC_DEF
 	@$(SUDO) systemctl enable $(HOST_VM_NET_SVC_DEF)
 	@$(SUDO) systemctl start $(HOST_VM_NET_SVC_DEF)
 
-gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildcard *.tmpl))
+gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildcard *.tmpl)) $(wildcard test/*.tmpl)
 	@echo "### Generating container configs from templates..."
 	@# if these substitutions get any more complex, use m4 instead.
 	for infile in $^; do                                        \
+	    dir=$$(dirname $$infile);                               \
 	    outfile=$$(basename --suffix .tmpl $$infile);           \
 	    $(SED) -E                                               \
 	      -e 's@___WEB_EXTERNAL_PORT___@$(WEB_EXTERNAL_PORT)@g' \
@@ -64,12 +70,14 @@ gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildc
 	      -e 's@___APP_NAME___@$(APP_NAME)@g'                   \
 	      -e 's@___APP_PATH___@$(APP_PATH)@g'                   \
 	      -e 's@___CODE_PATH___@$(CODE_PATH)@g'                 \
+	      -e 's@___DB_PATH___@$(DB_PATH)@g'                     \
+	      -e 's@___DB_NAME___@$(DB_NAME)@g'                     \
 	      -e 's@___DB_USER___@$(DB_USER)@g'                     \
 	      -e 's@___DB_PASSWORD___@$(DB_PASSWORD)@g'             \
-	      -e 's@___DB_PATH___@$(DB_PATH)@g'                     \
+	      -e 's@___DB_HOST___@$(DB_HOST)@g'                     \
 	      -e 's@___DB_EXTERNAL_PORT___@$(DB_EXTERNAL_PORT)@g'   \
 	      -e 's@___DB_INSTANCE_PORT___@$(DB_INSTANCE_PORT)@g'   \
-	   $$infile > $$outfile;                                    \
+	   $$infile > $$dir/$$outfile;                              \
 	done
 
 init-db:
