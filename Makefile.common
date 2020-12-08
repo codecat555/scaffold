@@ -16,6 +16,9 @@ FORCE_CONTAINER_CREATION=0
 # this def can be overrided in any file that includes this one
 DOCKER_COMPOSE_VERSION=1.27.4
 
+#
+APP_SERVICE_IP=$(shell ip --oneline --Numeric --family inet addr show dev enp0s25 primary scope global | sed -E 's/  */ /g' | cut -d' ' -f4 | sed -E 's@/[[:digit:]]+$$@@')
+
 # initialize
 FORCE_VM_CREATION=0
 FORCE_CONTAINER_CREATION=0
