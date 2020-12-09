@@ -9,6 +9,9 @@
 FORCE=0
 SYSCTL_FILE="/etc/sysctl.d/23-custom.conf"
 
+# get local ip address on external (default route) interface
+APP_SERVICE_IP=$(ip --oneline --Numeric --family inet addr show dev enp0s25 primary scope global | sed -E 's/  */ /g' | cut -d' ' -f4 | sed -E 's@/[[:digit:]]+$@@')
+
 # get local ip address on multipass bridge network
 LOCAL_IP=$(/usr/sbin/ip -family inet -br address show dev mpqemubr0 | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b')
 
@@ -63,6 +66,7 @@ iptables -t filter -I FORWARD 1 -i $host_ifc -p $proto --dport $host_port -j ACC
 # - see https://serverfault.com/questions/551487/dnat-from-localhost-127-0-0-1
 sysctl -w net.ipv4.conf.all.route_localnet=1
 iptables -t nat -A OUTPUT -p $proto -d 127.0.0.1 --dport $host_port -j DNAT --to $instance_ip:$instance_port
+iptables -t nat -A OUTPUT -p $proto -d $APP_SERVICE_IP --dport $host_port -j DNAT --to $instance_ip:$instance_port
 iptables -t nat -A POSTROUTING -p $proto -s 127.0.0.1 -d $instance_ip --dport $host_port -j SNAT --to $LOCAL_IP
 
 # persist the changes

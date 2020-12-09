@@ -24,12 +24,6 @@ FORCE_VM_CREATION=0
 FORCE_CONTAINER_CREATION=0
 FORCE_DB_CREATION=0
 
-CREATE_DOCKER_HOST_VM = $(shell if [ $(FORCE_VM_CREATION) -ne 0 ] || ! multipass list | grep "^$(APP_HOST) *Running " > /dev/null; then echo "new-docker-host-vm new-containers"; fi)
-
-SERVICE_PATTERNS=$(foreach SERVICE, $(SERVICES), -e "$(SERVICE)")
-SERVICE_COUNT=$(shell echo "$(SERVICES)" | wc -w)
-CREATE_DOCKER_CONTAINERS = $(shell if [ -n "$(CREATE_DOCKER_HOST_VM)" ] || [ $(FORCE_CONTAINER_CREATION) -ne 0 ] || [ $(SERVICE_COUNT) -ne $$(multipass exec $(APP_HOST) -- sudo docker-compose --project-name $(APP_NAME) --file $(APP_PATH)/$(DOCKER_COMPOSE_FILE) ps --services | grep -c $(SERVICE_PATTERNS)) ]; then echo "new-containers"; fi)
-
 FORWARD_PORT_CMD=$(TOP)/bin/forward_port.sh
 UPDATE_LEGACY_IPTABLES=$(TOP)/bin/update_legacy_iptables.sh
 
@@ -52,4 +46,10 @@ HOST_VM_NET_SVC_EXEC=host_vm_network_config.sh
 HOST_VM_NET_SVC_SRC_DIR=$(TOP)/host_vm_network_service
 SYSTEMD_SVC_DIR=/usr/lib/systemd/system
 LOCAL_BIN=/usr/local/bin
+
+CREATE_DOCKER_HOST_VM = $(shell if [ $(FORCE_VM_CREATION) -ne 0 ] || ! multipass list | grep "^$(APP_HOST) *Running " > /dev/null; then echo "new-docker-host-vm new-containers"; fi)
+
+SERVICE_PATTERNS=$(foreach SERVICE, $(SERVICES), -e "$(SERVICE)")
+SERVICE_COUNT=$(shell echo "$(SERVICES)" | wc -w)
+CREATE_DOCKER_CONTAINERS = $(shell if [ -n "$(CREATE_DOCKER_HOST_VM)" ] || [ $(FORCE_CONTAINER_CREATION) -ne 0 ] || [ $(FORCE_DB_CREATION) -ne 0 ] || [ $(SERVICE_COUNT) -ne $$(multipass exec $(APP_HOST) -- sudo docker-compose --project-name $(APP_NAME) --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) ps --services | grep -c $(SERVICE_PATTERNS)) ]; then echo "new-containers"; fi)
 
