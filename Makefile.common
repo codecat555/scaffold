@@ -53,3 +53,6 @@ SERVICE_PATTERNS=$(foreach SERVICE, $(SERVICES), -e "$(SERVICE)")
 SERVICE_COUNT=$(shell echo "$(SERVICES)" | wc -w)
 CREATE_DOCKER_CONTAINERS = $(shell if [ -n "$(CREATE_DOCKER_HOST_VM)" ] || [ $(FORCE_CONTAINER_CREATION) -ne 0 ] || [ $(FORCE_DB_CREATION) -ne 0 ] || [ $(SERVICE_COUNT) -ne $$(multipass exec $(APP_HOST) -- sudo docker-compose --project-name $(APP_NAME) --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) ps --services | grep -c $(SERVICE_PATTERNS)) ]; then echo "new-containers"; fi)
 
+# propagate local timezone
+TIMEZONE=$(shell cat /etc/timezone)
+

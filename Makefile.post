@@ -74,9 +74,10 @@ gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildc
 	      -e 's@___DB_NAME___@$(DB_NAME)@g'                     \
 	      -e 's@___DB_USER___@$(DB_USER)@g'                     \
 	      -e 's@___DB_PASSWORD___@$(DB_PASSWORD)@g'             \
-	      -e 's@___DB_HOST___@$(APP_SERVICE_IP)@g'                  \
+	      -e 's@___DB_HOST___@$(APP_SERVICE_IP)@g'              \
 	      -e 's@___DB_EXTERNAL_PORT___@$(DB_EXTERNAL_PORT)@g'   \
 	      -e 's@___DB_INSTANCE_PORT___@$(DB_INSTANCE_PORT)@g'   \
+	      -e 's@___TIMEZONE___@$(TIMEZONE)@g'                   \
 	   $$infile > $$dir/$$outfile;                              \
 	done
 
