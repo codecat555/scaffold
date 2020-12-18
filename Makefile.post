@@ -11,11 +11,17 @@ new-docker-host-vm: gen-host-vm-configs
 	-multipass purge
 	
 	@# and in with the new
-	multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
+	#multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
+	multipass launch -vv --cpus $(CPUS) -d $(MP_DISK_SIZE) --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
 	
 	multipass list --verbose
+
+	@# post-install reboot
+	@echo "### Rebooting host vm after configuration..."
+	multipass restart $(APP_HOST)
 	
 	@# finally, mount code repository to finish setup from the new host vm
+	@echo "### Mounting app directory..."
 	multipass mount $(APP_HOME) $(APP_HOST):$(APP_PATH)
 	
 	@echo "### New host vm complete..."
@@ -32,7 +38,7 @@ new-containers: gen-container-configs
 	@echo "HOST_VM_IP is $(HOST_VM_IP)"
 	
 	if [ $(FORCE_DB_CREATION) -eq 1 ]; then (cd $(TOP)/$(APP_NAME) && $(SUDO) rm -rf db); fi
-	multipass exec $(APP_HOST) -- $(SUDO) docker-compose --project-name $(APP_NAME) --log-level warning --verbose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate
+	multipass exec $(APP_HOST) -- $(SUDO) docker-compose --project-name $(APP_NAME) --log-level warning --verbose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) up --detach --force-recreate --build
 	@# allow db connections from host w/o password
 	@#if [ $(FORCE_DB_CREATION) -eq 1 ]; then ($(SUDO) $(SED) -e 's/^host all all all md5/host all all all reject/ $(TOP)/$(APP_NAME)/db/pg_hba.conf); fi
 	
@@ -40,6 +46,9 @@ new-containers: gen-container-configs
 	@# - can this not be done via the cloud-init file?
 	$(SUDO) $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(WEB_EXTERNAL_PORT) $(HOST_VM_IP) $(WEB_EXTERNAL_PORT)
 	$(SUDO) $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(DB_EXTERNAL_PORT) $(HOST_VM_IP) $(DB_EXTERNAL_PORT)
+	
+	@# wait a bit for everything to settle
+	sleep 5
 	
 	@echo "### New containers complete..."
 
@@ -61,26 +70,28 @@ host-vm-network-config-service: $(HOST_VM_NET_SVC_SRC_DIR)/$(HOST_VM_NET_SVC_DEF
 gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildcard *.tmpl)) $(wildcard test/*.tmpl)
 	@echo "### Generating container configs from templates..."
 	@# if these substitutions get any more complex, use m4 instead.
-	for infile in $^; do                                        \
-	    dir=$$(dirname $$infile);                               \
-	    outfile=$$(basename --suffix .tmpl $$infile);           \
-	    $(SED) -E                                               \
-	      -e 's@___WEB_EXTERNAL_PORT___@$(WEB_EXTERNAL_PORT)@g' \
-	      -e 's@___WEB_INSTANCE_PORT___@$(WEB_INSTANCE_PORT)@g' \
-	      -e 's@___APP_NAME___@$(APP_NAME)@g'                   \
-	      -e 's@___APP_PATH___@$(APP_PATH)@g'                   \
-	      -e 's@___CODE_PATH___@$(CODE_PATH)@g'                 \
-	      -e 's@___DB_PATH___@$(DB_PATH)@g'                     \
-	      -e 's@___DB_NAME___@$(DB_NAME)@g'                     \
-	      -e 's@___DB_USER___@$(DB_USER)@g'                     \
-	      -e 's@___DB_PASSWORD___@$(DB_PASSWORD)@g'             \
-	      -e 's@___DB_HOST___@$(APP_SERVICE_IP)@g'              \
-	      -e 's@___DB_EXTERNAL_PORT___@$(DB_EXTERNAL_PORT)@g'   \
-	      -e 's@___DB_INSTANCE_PORT___@$(DB_INSTANCE_PORT)@g'   \
-	      -e 's@___TIMEZONE___@$(TIMEZONE)@g'                   \
-	   $$infile > $$dir/$$outfile;                              \
+	for infile in $^; do                                          \
+	    dir=$$(dirname $$infile);                                 \
+	    outfile=$$(basename --suffix .tmpl $$infile);             \
+	    $(SED) -E                                                 \
+	      -e 's@___WEB_EXTERNAL_PORT___@$(WEB_EXTERNAL_PORT)@g'   \
+	      -e 's@___WEB_INSTANCE_PORT___@$(WEB_INSTANCE_PORT)@g'   \
+	      -e 's@___APP_NAME___@$(APP_NAME)@g'                     \
+	      -e 's@___APP_PATH___@$(APP_PATH)@g'                     \
+	      -e 's@___CODE_PATH___@$(CODE_PATH)@g'                   \
+	      -e 's@___DB_PATH___@$(DB_PATH)@g'                       \
+	      -e 's@___DB_NAME___@$(DB_NAME)@g'                       \
+	      -e 's@___DB_USER___@$(DB_USER)@g'                       \
+	      -e 's@___DB_PASSWORD___@$(DB_PASSWORD)@g'               \
+	      -e 's@___DB_HOST___@$(APP_SERVICE_IP)@g'                \
+	      -e 's@___DB_EXTERNAL_PORT___@$(DB_EXTERNAL_PORT)@g'     \
+	      -e 's@___DB_INSTANCE_PORT___@$(DB_INSTANCE_PORT)@g'     \
+	      -e 's@___TIMEZONE___@$(TIMEZONE)@g'                     \
+	   $$infile > $$dir/$$outfile;                                \
 	done
 
-init-db:
-	psql --host localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --file $(CODE_PATH)/sql/init.sql
+new-db:
+	psql --host localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --file $(TOP)/$(APP_NAME)/code/sql/init.sql
+	multipass exec $(APP_HOST) -- $(SUDO) $(SED) -i -e 's/^max_connections = .*$$/max_connections = $(DB_MAX_CONNECTIONS)/' $(DB_PATH)/postgresql.conf
+	multipass exec $(APP_HOST) -- $(SUDO) docker-compose --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) --project-name $(APP_NAME) restart
 
