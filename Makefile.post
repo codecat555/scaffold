@@ -8,7 +8,6 @@ new-docker-host-vm: gen-host-vm-configs
 	@echo "### Generating new host vm..."
 
 	if [ $(FORCE_DB_CREATION) -eq 0 ]; then \
-	@   echo "### - first, backup the db (if we are not starting fresh)..." \
 	    pg_dump --host localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --dbname $(DB_NAME) -f $(DB_DUMP_FILE); \
 	fi
 	
@@ -49,7 +48,6 @@ new-containers: gen-container-configs
 	@echo "### Generating new containers..."
 	
 	if [ $(FORCE_DB_CREATION) -eq 0 ] && [ ! -f $(DB_DUMP_FILE) ]; then \
-	@   echo "### - first, backup the db (if it wasn't saved already)..." \
 	    pg_dump --host localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --dbname $(DB_NAME) -f $(DB_DUMP_FILE); \
 	fi
 	
@@ -120,7 +118,7 @@ new-db:
 	
 	@echo "### - first, backup the existing db (if it wasn't saved already)..."
 	if [ $(FORCE_DB_CREATION) -eq 1 ]; then \
-	    psql --host localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --dbname $(DB_NAME) --file $(TOP)/$(APP_NAME)/code/sql/init.sql; \
+	    psql --host localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --file $(TOP)/$(APP_NAME)/code/sql/init.sql; \
 	elif [ -f $(DB_DUMP_FILE) ]; then \
 	     psql --host localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) -c 'DROP DATABASE $(DB_NAME);'; \
 	     psql --host localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) -c 'CREATE DATABASE $(DB_NAME);'; \
