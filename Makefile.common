@@ -9,6 +9,8 @@ INSTALL=/usr/bin/install
 build: TARGET=build
 clean: TARGET=clean
 
+RUNID:=$(shell date +'%Y%m%d%H%M%S')
+
 # these can be set on make command line to start with a fresh vm and/or fresh containers
 FORCE_VM_CREATION=0
 FORCE_CONTAINER_CREATION=0
@@ -53,7 +55,7 @@ SERVICE_PATTERNS=$(foreach SERVICE, $(SERVICES), -e "$(SERVICE)")
 SERVICE_COUNT=$(shell echo "$(SERVICES)" | wc -w)
 CREATE_DOCKER_CONTAINERS = $(shell if [ -n "$(CREATE_DOCKER_HOST_VM)" ] || [ $(FORCE_CONTAINER_CREATION) -ne 0 ] || [ $(FORCE_DB_CREATION) -ne 0 ] || [ $(SERVICE_COUNT) -ne $$(multipass exec $(APP_HOST) -- sudo docker-compose --project-name $(APP_NAME) --file $(CODE_PATH)/$(DOCKER_COMPOSE_FILE) ps --services | grep -c $(SERVICE_PATTERNS)) ]; then echo "new-containers"; fi)
 
-CREATE_DB = $(shell if [ $(FORCE_DB_CREATION) -ne 0 ] || [ ! -d $(DB_PATH) ]; then echo "new-db"; fi)
+CREATE_DB = $(shell if [ -n "$(CREATE_DOCKER_HOST_VM)" ] || [ -n "$(CREATE_DOCKER_CONTAINERS)" ] || [ $(FORCE_DB_CREATION) -ne 0 ]; then echo "new-db"; fi)
 
 # propagate local timezone
 TIMEZONE=$(shell cat /etc/timezone)
