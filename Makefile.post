@@ -15,6 +15,16 @@ new-docker-host-vm: gen-host-vm-configs
 	-multipass delete $(APP_HOST)
 	-multipass purge
 	
+	@# WIP WIP WIP -->
+	@# switch multipass over to use libvirt - https://multipass.run/docs/using-libvirt
+	@# connect the libvirt interface/plug
+	@#snap connect multipass:libvirt
+	@# stop all instances
+	@#multipass stop --all
+	@# tell Multipass to use libvirt
+	@#sudo multipass set local.driver=libvirt
+	@# <-- WIP WIP WIP
+	
 	@# and in with the new
 	 multipass launch --verbose --cpus $(CPUS) -d $(MP_DISK_SIZE) -m 8G --name $(APP_HOST) --cloud-init $(HOST_VM_CLOUD_INIT_FILE) $(MP_IMAGE_NAME)
 	
@@ -71,7 +81,7 @@ new-containers: gen-container-configs
 	$(SUDO) $(FORWARD_PORT_CMD) -f $(APP_HOST) $(EXTERNAL_INTERFACE) $(SERVICE_PROTO) $(DB_EXTERNAL_PORT) $(HOST_VM_IP) $(DB_EXTERNAL_PORT)
 	
 	@# wait a bit for everything to settle
-	sleep 5
+	sleep 10
 	
 	@echo "### New containers complete..."
 
