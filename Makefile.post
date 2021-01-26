@@ -100,7 +100,7 @@ host-vm-network-config-service: $(HOST_VM_NET_SVC_SRC_DIR)/$(HOST_VM_NET_SVC_DEF
 	@$(SUDO) systemctl enable $(HOST_VM_NET_SVC_DEF)
 	@$(SUDO) systemctl start $(HOST_VM_NET_SVC_DEF)
 
-gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildcard *.tmpl)) $(wildcard test/*.tmpl)
+gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildcard *.tmpl)) $(wildcard test/*.tmpl) $(wildcard $(TEST_DIR)/*.tmpl)
 	@echo "### Generating container configs from templates..."
 	@# if these substitutions get any more complex, use m4 instead.
 	for infile in $^; do                                          \
@@ -114,6 +114,7 @@ gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildc
 	      -e 's@___CODE_PATH___@$(CODE_PATH)@g'                   \
 	      -e 's@___DB_PATH___@$(DB_PATH)@g'                       \
 	      -e 's@___DB_NAME___@$(DB_NAME)@g'                       \
+	      -e 's@___DB_NAME_TEST___@$(DB_NAME_TEST)@g'             \
 	      -e 's@___DB_USER___@$(DB_USER)@g'                       \
 	      -e 's@___DB_PASSWORD___@$(DB_PASSWORD)@g'               \
 	      -e 's@___DB_HOST___@$(APP_SERVICE_IP)@g'                \
