@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TIMEOUT=180
+TIMEOUT=30
 
 # loop until we see expected rule
 start_time=$(/usr/bin/date +'%s')
@@ -13,7 +13,7 @@ while true; do
     fi
 
     cur_time=$(/usr/bin/date +'%s')
-    ((elapsed=$end_time - $cur_time))
+    ((elapsed=$cur_time - $start_time))
     if [ $elapsed -gt $TIMEOUT ]; then
         echo "$0: timed out waiting to discover FORWARD rule target ($elapsed seconds elapsed)." >&2
         exit 1
