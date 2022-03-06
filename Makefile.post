@@ -85,7 +85,7 @@ new-containers: gen-container-configs
 	
 	@echo "### New containers complete..."
 
-gen-host-vm-configs: $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE) host-vm-network-config-service
+gen-host-vm-configs: $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE)
 	@echo "### Generating host vm config from templates..."
 	$(SED) -E \
 	  -e 's/___WEB_EXTERNAL_PORT___/$(WEB_EXTERNAL_PORT)/g' \
