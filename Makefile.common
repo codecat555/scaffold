@@ -33,7 +33,8 @@ UPDATE_LEGACY_IPTABLES=$(TOP)/bin/update_legacy_iptables.sh
 EXTERNAL_INTERFACE=enp0s25
 
 # these values are defined here so they are globally unique and don't overlap
-DEDUPLIFIER_EXTERNAL_PORT=5000
+TALON_RECORDER_EXTERNAL_PORT=5000
+DEDUPLIFIER_EXTERNAL_PORT=5005
 TEST0_EXTERNAL_PORT=5001
 
 DOCKER_COMPOSE_FILE=docker-compose.yml
