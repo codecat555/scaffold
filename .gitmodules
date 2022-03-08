@@ -1,0 +1,3 @@
+[submodule "deduplifier"]
+	path = deduplifier
+	url = git@github.com:codecat555/deduplifier.git
