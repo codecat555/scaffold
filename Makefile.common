@@ -61,3 +61,5 @@ CREATE_DB = $(shell if [ -n "$(CREATE_DOCKER_HOST_VM)" ] || [ -n "$(CREATE_DOCKE
 # propagate local timezone
 TIMEZONE=$(shell cat /etc/timezone)
 
+WEB_ALLOWED_HOSTS=any
+DB_ALLOWED_HOSTS=any

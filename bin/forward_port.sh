@@ -15,20 +15,22 @@ APP_SERVICE_IP=$(ip --oneline --Numeric --family inet addr show dev enp0s25 prim
 # get local ip address on multipass bridge network
 LOCAL_IP=$(/usr/sbin/ip -family inet -br address show dev mpqemubr0 | grep -oE '\b([0-9]{1,3}\.){3}[0-9]{1,3}\b')
 
-if [[ $# -ne 6 && $# -ne 7 ]]; then
-    echo "usage $0 [-f] <multipass-instance-name> <host-interface> <proto> <host-port> <instance-ip> <instance-port>" >&2
-    exit 1
-fi
 if [ $1 == "-f" ]; then
     shift
     FORCE=1
 fi
+if [[ $# -ne 7 ]]; then
+    echo "usage: $0 [-f] <multipass-instance-name> <host-interface> <proto> <host-port> <instance-ip> <instance-port> <allowed-hosts>" >&2
+    exit 1
+fi
+
 app_host=$1
 host_ifc=$2
 proto=$3
 host_port=$4
 instance_ip=$5
 instance_port=$6
+allowed_hosts=$7
 
 # see example at https://discourse.ubuntu.com/t/multipass-port-forwarding-with-iptables/18741
 # also see http://www.netfilter.org/documentation/HOWTO/NAT-HOWTO-6.html#ss6.2
@@ -58,7 +60,7 @@ for table in filter nat; do
 done
 
 # rules for accepting external connections
-iptables -t nat -I PREROUTING 1 -i $host_ifc -p $proto --dport $host_port -j DNAT --to-destination $instance_ip:$instance_port
+iptables -t nat -I PREROUTING 1 -i $host_ifc -p $proto --src $allowed_hosts --dport $host_port -j DNAT --to-destination $instance_ip:$instance_port
 
 iptables -t filter -I FORWARD 1 -i $host_ifc -p $proto --dport $host_port -j ACCEPT
 
