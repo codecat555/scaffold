@@ -1,7 +1,5 @@
 
-#export TOP:=$(PWD)
-export TOP:=/home/me/Documents/dev
-
+export TOP:=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 SED=/usr/bin/sed
 SUDO=/usr/bin/sudo
 INSTALL=/usr/bin/install
