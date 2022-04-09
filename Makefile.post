@@ -127,7 +127,7 @@ gen-container-configs: $(filter-out $(HOST_VM_CLOUD_INIT_FILE_TEMPLATE), $(wildc
 new-db:
 	@echo "### Generating new db..."
 	
-	@echo "### - first, backup the existing db (if it wasn't saved already)..."
+	@echo "### - create/restore the db..."
 	if [ $(FORCE_DB_CREATION) -eq 1 ]; then \
 	    psql --host localhost --port $(DB_EXTERNAL_PORT) --username $(DB_USER) --file $(TOP)/$(APP_NAME)/code/sql/init.sql; \
 	elif [ -f $(DB_DUMP_FILE) ]; then \
