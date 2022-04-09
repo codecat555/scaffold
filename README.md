@@ -28,7 +28,7 @@ Example:
 
 By default, the database is dumped to local disk before the database container is destroyed. This step is skipped if FORCE_DB_CREATION=1...unless **DB_DUMP_FILE** is set.
 
-The **DB_DUMP_FILE** environment variable can be used to control where the data is dumped and/or which data file should be used to restore the data after the containers have been recreated.
+The **DB_DUMP_FILE** environment variable can be used to control where the data is dumped and/or which file should be used to restore the data after the containers have been recreated.
 
 That is, if the file indicated by the **DB_DUMP_FILE** variable does not exist when the database container is destroyed, then the database will be dumped into that file first. If that file does already exist, then it is assumed to be up-to-date and the database will not be saved to it.
 
@@ -36,7 +36,7 @@ Later in the build process, after the database container is recreated, if the fi
 
 Example:
 
-    * DB_DUMP_FILE=<your-path-here>
+    DB_DUMP_FILE=<your-path-here>
 
 ## How It Works
 
@@ -50,11 +50,11 @@ The project configuration files may be templates containing tokens to be replace
 
 ### *Makefile*
 
-The top level makefile pulls in the definitions contained in the *Makefile.common* file, and then descends into the project subdirectory in order to run the make files there.
+The top level makefile pulls in the definitions contained in the *Makefile.common* file, and then descends into the project subdirectory in order to run the make files there. At some point, the project-level makefiles may include the top-level *Makefile.post* file in order to take advantage of the build rules defined there.
 
 ### *Makefile.common*
 
-The *Makefile.common* file# contains *global* definitions and *default* definitions.
+The *Makefile.common* file contains *global* definitions and *default* definitions.
 
 * The *global* definitions are common across all the projects, such as which external ports are defined for each. These port assignments must be unique for each project and so there is one global list which applies for all.
 
@@ -64,9 +64,9 @@ The *Makefile.common* file# contains *global* definitions and *default* definiti
 
 ### *Makefile.post*
 
-This file contains the *make* rules used to the project's configuration file templates, create the virtual systems required and to handle any additional tasks like firewall changes.
+This file contains the *make* rules used to transform the project's configuration file templates, create the virtual systems required and to handle any additional tasks like firewall changes.
 
 
 Typically, this file is *included* at the bottom of the project's makefiles, after everything else has been defined. 
 
-Any definitions in the project's make files which appear after *Makefile.post* is included may override (redefine) the definitions from that file.
+Any definitions in the project's make files which appear after *Makefile.post* is included may override the definitions from that file.
